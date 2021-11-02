@@ -2,6 +2,9 @@ import os
 from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
+
+from sqlalchemy.sql.expression import false
+from sqlalchemy.sql.sqltypes import Integer
 from flask_cors import CORS
 
 from .database.models import db_drop_and_create_all, setup_db, Drink
@@ -17,7 +20,7 @@ CORS(app)
 !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 !! Running this funciton will add one
 '''
-# db_drop_and_create_all()
+db_drop_and_create_all()
 
 # ROUTES
 '''
@@ -30,6 +33,17 @@ CORS(app)
 '''
 
 
+@app.route('/drinks')
+def get_drinks():
+    drinks = Drink.query.all()
+    return jsonify(
+        {
+        'success': True,
+        'drinks': [drink.short() for drink in drinks]
+        }
+    )
+
+
 '''
 @TODO implement endpoint
     GET /drinks-detail
@@ -38,6 +52,18 @@ CORS(app)
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
+
+
+@app.route('/drinks-detail')
+@requires_auth('get:drinks-detail')
+def get_drinks_detail(payload=''):
+    drinks = Drink.query.all()
+    return jsonify(
+        {
+        'success': True,
+        'drinks': [drink.long() for drink in drinks]
+        }
+    )
 
 
 '''
@@ -49,6 +75,51 @@ CORS(app)
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the newly created drink
         or appropriate status code indicating reason for failure
 '''
+def ingredient_validator(ingredient):
+    requirements = {
+        'color': str,
+        'name': str,
+        'parts': int
+    }
+    for requirement in requirements:
+            if requirement not in ingredient:
+                print("MISSING", requirement)
+                return False                
+            if not isinstance(ingredient[requirement], requirements[requirement]):
+                print("INVALID", requirement)
+                return False
+    return True                        
+
+def recipe_validator(recipe):
+    # simple recipe validator - checks name and types
+
+
+    if isinstance(recipe, list):
+        for ingredient in recipe:
+            if not ingredient_validator(ingredient):
+                return false
+    elif isinstance(recipe,dict):
+        return ingredient_validator(recipe)
+    else:
+        return False
+    return True
+        
+@app.route('/drinks', methods=['POST'])
+@requires_auth('post:drinks')
+def add_drink(payload=''):
+    body = request.get_json()
+    title = body['title']
+    recipe = body['recipe']
+    if not recipe_validator(recipe):
+        abort(422)
+    drink = Drink(title=title,recipe=json.dumps(recipe))
+    drink.insert()
+    return jsonify(
+        {
+            'success' : True,
+            'drinks': [drink.long()]
+        }
+    )
 
 
 '''
@@ -63,6 +134,30 @@ CORS(app)
         or appropriate status code indicating reason for failure
 '''
 
+@app.route('/drinks/<int:id>', methods=['PATCH'])
+@requires_auth('patch:drinks')
+def patch_drink(id):
+    drink = Drink.query.filter(Drink.id == id).one_or_none()
+    if not drink:
+        abort(404)
+    body = request.get_json()
+    if 'title' in body:
+        drink.title = body['title']
+    if 'recipe' in body:
+        recipe = body['recipe']
+        if not recipe_validator(recipe):
+            abort(422)
+        drink.recipe = json.dumps(recipe)
+    drink.update()
+    return jsonify(
+        {
+            'success' : True,
+            'drinks' : [drink.long()]
+        }
+    )
+
+
+
 
 '''
 @TODO implement endpoint
@@ -75,6 +170,19 @@ CORS(app)
         or appropriate status code indicating reason for failure
 '''
 
+@app.route('/drinks/<int:id>', methods=['DELETE'])
+@requires_auth('delete:drinks')
+def delete_drink(id):
+    drink = Drink.query.filter(Drink.id == id).one_or_none()
+    if not drink:
+        abort(404)
+    drink.delete()
+    return jsonify(
+        {
+            'success': True,
+            'delete': id
+        }
+    )
 
 # Error Handling
 '''
