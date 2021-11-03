@@ -9,7 +9,8 @@ AUTH0_DOMAIN = 'fullstackcafe.eu.auth0.com'
 ALGORITHMS = ['RS256']
 API_AUDIENCE = 'cafe'
 
-## AuthError Exception
+# AuthError Exception
+
 
 class AuthError(Exception):
     def __init__(self, error, status_code):
@@ -20,7 +21,7 @@ class AuthError(Exception):
 def get_token_auth_header():
     # gets JWT from the requests header and validates its form
     auth = request.headers.get('Authorization', None)
-    print (auth)
+    print(auth)
     if not auth:
         raise AuthError({
             'code': 'authorization_header_missing',
@@ -33,7 +34,6 @@ def get_token_auth_header():
             'code': 'invalid_header',
             'description': 'Authorization header must start with "Bearer".'
         }, 401)
-    
 
     elif len(auth_parts) == 1:
         raise AuthError({
@@ -41,7 +41,6 @@ def get_token_auth_header():
             'description': 'Token not found.'
         }, 401)
 
-    
     elif len(auth_parts) > 2:
         raise AuthError({
             'code': 'invalid_header',
@@ -51,14 +50,15 @@ def get_token_auth_header():
     token = auth_parts[1]
     return token
 
+
 def check_permissions(permission, payload):
     # checks JWT permission agaist passed permission
     print(permission)
     if 'permissions' not in payload:
-                        raise AuthError({
-                            'code': 'invalid_claims',
-                            'description': 'Permissions not included in JWT.'
-                        }, 400)
+        raise AuthError({
+            'code': 'invalid_claims',
+            'description': 'Permissions not included in JWT.'
+        }, 400)
 
     if permission not in payload['permissions']:
         raise AuthError({
@@ -66,6 +66,7 @@ def check_permissions(permission, payload):
             'description': 'Permission not found.'
         }, 403)
     return True
+
 
 def verify_decode_jwt(token):
     # decodes input token and validates against auth0 key
@@ -117,9 +118,9 @@ def verify_decode_jwt(token):
                 'description': 'Unable to parse authentication token.'
             }, 400)
     raise AuthError({
-                'code': 'invalid_header',
+        'code': 'invalid_header',
                 'description': 'Unable to find the appropriate key.'
-            }, 400)
+    }, 400)
 
 
 def requires_auth(permission=''):

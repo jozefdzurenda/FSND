@@ -19,14 +19,15 @@ db_drop_and_create_all()
 
 # ROUTES
 
+
 @app.route('/drinks')
 def get_drinks():
     # returns list of drinks
     drinks = Drink.query.all()
     return jsonify(
         {
-        'success': True,
-        'drinks': [drink.short() for drink in drinks]
+            'success': True,
+            'drinks': [drink.short() for drink in drinks]
         }
     )
 
@@ -39,8 +40,8 @@ def get_drinks_detail(payload=''):
     drinks = Drink.query.all()
     return jsonify(
         {
-        'success': True,
-        'drinks': [drink.long() for drink in drinks]
+            'success': True,
+            'drinks': [drink.long() for drink in drinks]
         }
     )
 
@@ -53,13 +54,14 @@ def ingredient_validator(ingredient):
         'parts': int
     }
     for requirement in requirements:
-            if requirement not in ingredient:
-                #print("MISSING", requirement)
-                return False                
-            if not isinstance(ingredient[requirement], requirements[requirement]):
-                #print("INVALID", requirement)
-                return False
-    return True                        
+        if requirement not in ingredient:
+            #print("MISSING", requirement)
+            return False
+        if not isinstance(ingredient[requirement], requirements[requirement]):
+            #print("INVALID", requirement)
+            return False
+    return True
+
 
 def recipe_validator(recipe):
     # simple recipe validator - data type and ingredients check
@@ -67,12 +69,13 @@ def recipe_validator(recipe):
         for ingredient in recipe:
             if not ingredient_validator(ingredient):
                 return false
-    elif isinstance(recipe,dict):
+    elif isinstance(recipe, dict):
         return ingredient_validator(recipe)
     else:
         return False
     return True
-        
+
+
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
 def add_drink(payload=''):
@@ -84,14 +87,15 @@ def add_drink(payload=''):
     recipe = body['recipe']
     if not recipe_validator(recipe):
         abort(422)
-    drink = Drink(title=title,recipe=json.dumps(recipe))
+    drink = Drink(title=title, recipe=json.dumps(recipe))
     drink.insert()
     return jsonify(
         {
-            'success' : True,
+            'success': True,
             'drinks': [drink.long()]
         }
     )
+
 
 @app.route('/drinks/<int:id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
@@ -113,10 +117,11 @@ def patch_drink(id):
     drink.update()
     return jsonify(
         {
-            'success' : True,
-            'drinks' : [drink.long()]
+            'success': True,
+            'drinks': [drink.long()]
         }
     )
+
 
 @app.route('/drinks/<int:id>', methods=['DELETE'])
 @requires_auth('delete:drinks')
@@ -137,6 +142,7 @@ def delete_drink(payload, id):
 
 # Error Handling
 
+
 @app.errorhandler(404)
 def unprocessable(error):
     return jsonify({
@@ -145,6 +151,7 @@ def unprocessable(error):
         "message": "resource not found"
     }), 422
 
+
 @app.errorhandler(422)
 def unprocessable(error):
     return jsonify({
@@ -152,6 +159,7 @@ def unprocessable(error):
         "error": 422,
         "message": "unprocessable"
     }), 422
+
 
 @app.errorhandler(AuthError)
 def auth_error(error):
