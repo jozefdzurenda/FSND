@@ -5,7 +5,15 @@ import json
 from os import name
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask import (
+    Flask,
+    render_template,
+    request,
+    Response,
+    flash,
+    redirect,
+    url_for
+)
 from flask_moment import Moment
 from flask_migrate import Migrate
 import logging
@@ -13,7 +21,6 @@ from logging import Formatter, FileHandler
 from flask_wtf import Form
 from wtforms.fields import choices
 from forms import *
-
 from models import db, Venue, Artist, Show
 #----------------------------------------------------------------------------#
 # App Config.
@@ -50,7 +57,9 @@ app.jinja_env.filters['datetime'] = format_datetime
 @app.route('/')
 def index():
     # Home page
-    return render_template('pages/home.html')
+    venues = Venue.query.order_by(Venue.created_time.desc()).limit(10).all()
+    artists = Artist.query.order_by(Artist.created_time.desc()).limit(10).all()
+    return render_template('pages/home.html', venues=venues, artists=artists)
 
 
 #  Venues
@@ -70,7 +79,8 @@ def venues():
             'venues': [{
                 'id': venue.id,
                 'name': venue.name,
-                'num_upcoming_shows': len([show for show in venue.shows if show.start_time > datetime.now()])
+                'num_upcoming_shows': len(db.session.query(Show).join(Venue).filter(Show.venue_id == venue.id).filter(Show.start_time > datetime.now()).all())
+                #len([show for show in venue.shows if show.start_time > datetime.now()])
             } for venue in venues if
                 venue.city == place.city and venue.state == place.state]
         })
@@ -89,7 +99,8 @@ def search_venues():
         "data": [{
             "id": venue.id,
             "name": venue.name,
-            "num_upcoming_shows": len([show for show in venue.shows if show.start_time > datetime.now()])
+            "num_upcoming_shows": len(db.session.query(Show).join(Venue).filter(Show.venue_id == venue.id).filter(Show.start_time > datetime.now()).all())
+            # len([show for show in venue.shows if show.start_time > datetime.now()])
         } for venue in matches]
     }
     return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
@@ -164,7 +175,8 @@ def create_venue_submission():
             website_link=form.website_link.data,
             genres=form.genres.data,
             seeking_talent=form.seeking_talent.data,
-            seeking_description=form.seeking_description.data
+            seeking_description=form.seeking_description.data,
+            created_time=datetime.now()
         )
 
         try:
@@ -223,7 +235,8 @@ def search_artists():
         "data": [{
             "id": artist.id,
             "name": artist.name,
-            "num_upcoming_shows": len([show for show in artist.shows if show.start_time > datetime.now()])
+            "num_upcoming_shows": len(db.session.query(Show).join(Artist).filter(Show.artist_id == artist.id).filter(Show.start_time > datetime.now()).all())
+            # len([show for show in artist.shows if show.start_time > datetime.now()])
         } for artist in matches]
     }
 
@@ -236,7 +249,8 @@ def show_artist(artist_id):
     artist = Artist.query.filter(Artist.id == artist_id).first_or_404()
     past_shows = []
     upcoming_shows = []
-    for show in artist.shows:
+    # artist.shows:
+    for show in db.session.query(Show).join(Artist).filter(Show.artist_id == artist_id).all():
         venue = Venue.query.get(show.venue_id)
         show_info = {
             "venue_id": show.venue_id,
@@ -335,7 +349,7 @@ def edit_venue_submission(venue_id):
             venue.website_link = form.website_link.data,
             venue.genres = form.genres.data,
             venue.seeking_talent = form.seeking_talent.data,
-            venue.seeking_description = form.seeking_description.data
+            venue.seeking_description = form.seeking_description.data,
             db.session.commit()
             flash('Venue ' + venue.name + ' edit successful!')
         else:
@@ -375,7 +389,8 @@ def create_artist_submission():
             website_link=form.website_link.data,
             genres=form.genres.data,
             seeking_venue=form.seeking_venue.data,
-            seeking_description=form.seeking_description.data
+            seeking_description=form.seeking_description.data,
+            created_time=datetime.now()
         )
 
         try:
@@ -447,6 +462,16 @@ def create_show_submission():
         flash('Show was NOT listed - invalid form submited', 'error')
 
     return render_template('pages/home.html')
+
+
+@app.errorhandler(400)
+def server_error(error):
+    return render_template('errors/500.html'), 400
+
+
+@app.errorhandler(403)
+def server_error(error):
+    return render_template('errors/403.html'), 403
 
 
 @app.errorhandler(404)
